@@ -1,106 +1,117 @@
-# {REPORT NAME}
+# South West Discharge and Flow Dashboard
+
 ## NHS England South West Insights and Intelligence
 
 ### About the Report/Code
-
-{ADD EXPERIMENTAL STATUS BADGE IF PROJECT IS IN DEVELOPMENT}
-[![status: experimental](https://github.com/GIScience/badges/raw/master/status/experimental.svg)](https://github.com/GIScience/badges#experimental)
-
-This repository holds code for the {REPORT NAME} {SHORT DESCRIPTION}
-
-_**Note:** Only public or fake data are shared in this repository._
-
+ 
+This repository contains the SQL code used to produce the NHS England South West Discharge and Flow Dashboard.
+ 
+The dashboard provides a regional overview of discharge performance, patient flow, length of stay, bed occupancy and virtual ward activity across acute providers in the South West. It supports operational performance monitoring and identifies opportunities to improve patient flow and discharge processes.
+ 
+**Note:** No patient-level or identifiable data are stored within this repository.
+ 
+---
+ 
 ### Report/Code Overview
+ 
+**Status:** Active  
 
-**Status:** Active / Retired / In development
+**Subject area:** Urgent and Emergency Care (UEC), Discharge and Patient Flow  
 
-**Subject area:** Specific subject area
+**Purpose:** To provide consistent reporting on discharge performance, length of stay, bed occupancy and virtual ward activity across South West acute providers.  
 
-**Purpose:** Decribe what the report does
+**Audience:** NHS England South West, Integrated Care Boards (ICBs), Provider Trusts and operational performance teams.  
 
-**Audience:** Decribe who the report is for
+**Frequency:** Weekly (updated each Wednesday).  
 
-**Frequency:** How often is the report refreshed
+**Output type:** Power BI Dashboard  
 
-**Output type:** Slides, powerBI, tableau, markdown, excel, PDF, etc
+**Distribution:** Internal NHS England reporting and performance management  
 
-**Distribution:** How is the report shared
-
-**Quality assurance:** When have code review and output QA checks been undertaken
-
+**Quality assurance:** SQL code is peer reviewed where appropriate and outputs are validated against source systems and existing reporting products  
+ 
+---
+ 
 ### Built With
+ 
+- SQL Server  
 
-{LIST SOFTWARE USED TO CREATE PROJECT}
-
-[R Studio](http://www.rstudio.com/.)  
-[R Statistical Software](https://www.R-project.org/.)  
-[SQL SSMS](https://learn.microsoft.com/en-us/sql/ssms/download-sql-server-management-studio-ssms?view=sql-server-ver16)  
-[!Python v3.8](https://www.python.org/downloads/release/python-380/)  
-
-- {LIST OF MAIN PACKAGE VERSIONS}
-
-
-### Getting Started
-
-#### Installation
-
-To get a local copy up and running follow these simple steps.
-
-To clone the repo:
-
-`git clone https://github.com/nhsx/{REPO NAME}`
-
-{ADDITIONAL TECHNICAL SUPPORT AND NEEDS} 
-
+- Power BI Desktop  
+ 
+---
+ 
 ### Usage
-{DESCRIPTION OF CODE}
-{DESCRIPTION OF PROCESS AND TECHNIQUES UTILISED}
-{METHODOLOGY USED}
+ 
+This repository contains SQL scripts used to extract, transform and aggregate data from multiple national and regional data sources to produce dashboard metrics.
+ 
+Metrics include:
+ 
+- Discharge by Day 7  
 
-#### Outputs
-{LIST AND DESCRIPTION OF OUTPUTS}
+- Pathway 0 Patients  
 
-#### Datasets
-{DESCRIPTION AND LINKS TO DATASETS}
+- Discharges Before 5pm  
 
-### Dependancies or parent code
-{Links to any other code depedancies that are used within this code}
+- Pre-Noon Discharges  
 
-### Dependants or child code
-{Links to any other code dependants that use this code}
+- Weekend Discharges  
 
-### Test data
-{LINK TO FAKE DATA TO SUPPORT INITAIL CODE RUNS}
+- Length of Stay (7, 14 and 21 days)  
 
-### Contributing
+- Average Length of Stay  
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+- Discharge Ready Date (DRD) metrics  
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- Bed Occupancy (including IPC categories)  
 
-_See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidance._
+- Virtual Wards  
+ 
+---
+ 
+### Outputs
+ 
+- South West Discharge and Flow Power BI Dashboard  
 
-### License
+---
+ 
+### Datasets
+ 
+Data is sourced from multiple national and regional datasets, including:
+ 
+- MESH APCS Core Daily  
 
-Unless stated otherwise, the codebase is released under [the MIT Licence][mit].
-This covers both the codebase and any sample code in the documentation.
+- SEFT Covid SitReps 
 
-_See [LICENSE](./LICENSE) for more information._
+- AnE Dashboard Metrics 
 
-The documentation is [© Crown copyright][copyright] and available under the terms
-of the [Open Government 3.0][ogl] licence.
+- Foundry Virtual Wards
 
-[mit]: LICENCE
-[copyright]: http://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/
-[ogl]: http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
-
+- PAT Planning Reporting
+ 
+Further detail is available in the dashboard **Metric Detail** tab.
+ 
+---
+ 
+### Dependencies or Parent Code
+ 
+None currently identified.
+ 
+---
+ 
+### Dependants or Child Code
+ 
+The Power BI dashboard consumes the outputs generated by this SQL codebase.
+ 
+---
+ 
+### Test Data
+ 
+No test data is currently included in this repository.
+ 
+---
+ 
 ### Contact
-
-To find out more about the South West Intelligence and Insights Team visit our [South West Intelligence and Insights Team Futures Page](https://future.nhs.uk/SouthWestAnalytics)) or get in touch at [england.southwestanalytics@nhs.net](mailto:england.southwestanalytics@nhs.net).
-
-<!-- ### Acknowledgements -->
-
+ 
+To find out more about the South West Intelligence and Insights Team, visit the South West Intelligence and Insights Team Futures page or contact:  
+england.swinsightsandintelligence@nhs.net
+ 
