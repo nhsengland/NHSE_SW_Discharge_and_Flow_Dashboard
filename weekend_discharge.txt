@@ -1,0 +1,191 @@
+WITH daily_discharge_base AS (
+
+    -- (keep this EXACTLY as you now have it)
+    SELECT 
+        CASE WHEN Der_Provider_Code = 'RD3' THEN 'R0D'
+	 WHEN Der_Provider_Code = 'RDZ' THEN 'R0D'
+	 WHEN Der_Provider_Code = 'RBZ' THEN 'RH8'
+	 WHEN Der_Provider_Code = 'RA3' THEN 'RA7'
+	 WHEN Der_Provider_Code = 'RBA' THEN 'RH5'
+	 WHEN Der_Provider_Code = 'R1G' THEN 'RA9'
+	 WHEN Der_Provider_Code = 'RVJ13' THEN 'RVJ'
+	 WHEN Der_Provider_Code = 'RA4' THEN 'RH5'
+	 WHEN Der_Provider_Code = 'B4B4S' THEN 'RD1'
+	 ELSE Der_Provider_Code END AS Provider_Current
+	 	 
+,CASE WHEN o.organisation_name = 'ROYAL DEVON AND EXETER NHS FOUNDATION TRUST' THEN 'ROYAL DEVON UNIVERSITY HEALTHCARE NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'TAUNTON AND SOMERSET NHS FOUNDATION TRUST' THEN 'SOMERSET NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'NORTHERN DEVON HEALTHCARE NHS TRUST' THEN 'ROYAL DEVON UNIVERSITY HEALTHCARE NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'THE ROYAL BOURNEMOUTH AND CHRISTCHURCH HOSPITALS NHS FOUNDATION TRUST' THEN 'UNIVERSITY HOSPITAL DORSET NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'POOLE HOSPITAL NHS FOUNDATION TRUST' THEN 'UNIVERSITY HOSPITAL DORSET NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'TORBAY AND SOUTHERN DEVON HEALTH AND CARE NHS TRUST' THEN 'TORBAY AND SOUTH DEVON NHS FOUNDATION TRUST'
+	 When o.organisation_name = 'EMERSONS GREEN NHS TREATMENT CENTRE' THEN 'NORTH BRISTOL NHS TRUST'
+	 When o.organisation_name = 'YEOVIL DISTRICT HOSPITAL NHS FOUNDATION TRUST' THEN 'SOMERSET NHS FOUNDATION TRUST'	 
+	 When o.Organisation_Name = 'UNIVERSITY HOSPITALS BRISTOL NHS FOUNDATION TRUST' then 'UNIVERSITY HOSPITALS BRISTOL AND WESTON NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name = 'BSW BANES LOCALITY CDC' THEN 'ROYAL UNITED HOSPITALS BATH NHS FOUNDATION TRUST'
+	 ELSE o.organisation_name  END AS Organisation_Name,
+            
+        o.stp_name,
+        o.stp_code, 
+
+        CONCAT(
+            YEAR(apc.Discharge_Date),
+            RIGHT('0' + CAST(MONTH(apc.Discharge_Date) AS VARCHAR(2)), 2)
+        ) AS YearMonth,
+
+        CASE 
+            WHEN apc.Der_Management_Type = 'EM' THEN 'NE' 
+            ELSE apc.Der_Management_Type 
+        END AS Der_Management_Type,
+
+        CASE 
+            WHEN apc.Der_Spell_LoS = '0' THEN '0 Day LOS' 
+            ELSE '1+Day LOS' 
+        END AS LOS,
+
+        DATENAME(WEEKDAY, apc.Discharge_Date) AS Day_of_Week,
+
+        CASE 
+            WHEN DATENAME(WEEKDAY, apc.Discharge_Date) IN ('Saturday','Sunday') THEN 'Weekend'
+            ELSE 'Weekday'
+        END AS Day_Type,
+
+        apc.Discharge_Date,
+        count(cast(apc.[APCS_Ident] as varchar)) AS Daily_Discharges 
+
+    FROM [MESH_APC].[APCS_Core_Daily] apc
+
+    LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies] o
+        ON apc.Der_Provider_Code = o.Organisation_Code
+
+    left join [MESH_APC].[APCS_2526_Der_Daily] as c
+        on apc.APCS_Ident = c.[APCS_Ident]
+
+
+    WHERE 
+    apc.Discharge_Date >= DATEADD(
+        MONTH,
+        -24,
+        DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+    )
+    AND apc.Discharge_Date < DATEFROMPARTS(
+        YEAR(GETDATE()),
+        MONTH(GETDATE()),
+        1
+    )
+        and c.Responsible_Purchaser_Assignment_Method NOT IN ('Private Patient')
+        AND apc.Der_Management_Type IN ('NE','EM','EL')
+        and Der_Provider_Code  in ( -- SW Providers Acute Providers Only
+		'RD1',
+		'RN3',
+		'RNZ',
+		'RA7',
+		'RVJ',
+		'REF',
+		'RA9',
+		'RH8',
+		'RK9',
+		'RBD',
+		'R0D',
+		'RTE',
+		'RH5',
+	    'RVJ13',
+		'B4B4S')
+
+    GROUP BY
+      
+     CASE WHEN Der_Provider_Code = 'RD3' THEN 'R0D'
+	 WHEN Der_Provider_Code = 'RDZ' THEN 'R0D'
+	 WHEN Der_Provider_Code = 'RBZ' THEN 'RH8'
+	 WHEN Der_Provider_Code = 'RA3' THEN 'RA7'
+	 WHEN Der_Provider_Code = 'RBA' THEN 'RH5'
+	 WHEN Der_Provider_Code = 'R1G' THEN 'RA9'
+	 WHEN Der_Provider_Code = 'RVJ13' THEN 'RVJ'
+	 WHEN Der_Provider_Code = 'RA4' THEN 'RH5'
+	 WHEN Der_Provider_Code = 'B4B4S' THEN 'RD1'
+	 ELSE Der_Provider_Code END
+	 	 
+,CASE WHEN o.organisation_name = 'ROYAL DEVON AND EXETER NHS FOUNDATION TRUST' THEN 'ROYAL DEVON UNIVERSITY HEALTHCARE NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'TAUNTON AND SOMERSET NHS FOUNDATION TRUST' THEN 'SOMERSET NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'NORTHERN DEVON HEALTHCARE NHS TRUST' THEN 'ROYAL DEVON UNIVERSITY HEALTHCARE NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'THE ROYAL BOURNEMOUTH AND CHRISTCHURCH HOSPITALS NHS FOUNDATION TRUST' THEN 'UNIVERSITY HOSPITAL DORSET NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'POOLE HOSPITAL NHS FOUNDATION TRUST' THEN 'UNIVERSITY HOSPITAL DORSET NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name  = 'TORBAY AND SOUTHERN DEVON HEALTH AND CARE NHS TRUST' THEN 'TORBAY AND SOUTH DEVON NHS FOUNDATION TRUST'
+	 When o.organisation_name = 'EMERSONS GREEN NHS TREATMENT CENTRE' THEN 'NORTH BRISTOL NHS TRUST'
+	 When o.organisation_name = 'YEOVIL DISTRICT HOSPITAL NHS FOUNDATION TRUST' THEN 'SOMERSET NHS FOUNDATION TRUST'	 
+	 When o.Organisation_Name = 'UNIVERSITY HOSPITALS BRISTOL NHS FOUNDATION TRUST' then 'UNIVERSITY HOSPITALS BRISTOL AND WESTON NHS FOUNDATION TRUST'
+	 WHEN o.organisation_name = 'BSW BANES LOCALITY CDC' THEN 'ROYAL UNITED HOSPITALS BATH NHS FOUNDATION TRUST'
+	 ELSE o.organisation_name  END,
+        o.stp_name,
+        o.stp_code,
+        CONCAT(
+            YEAR(apc.Discharge_Date),
+            RIGHT('0' + CAST(MONTH(apc.Discharge_Date) AS VARCHAR(2)), 2)
+        ),
+        CASE WHEN apc.Der_Management_Type = 'EM' THEN 'NE' ELSE apc.Der_Management_Type END,
+        CASE WHEN apc.Der_Spell_LoS = '0' THEN '0 Day LOS' ELSE '1+Day LOS' END,
+        DATENAME(WEEKDAY, apc.Discharge_Date),
+        CASE WHEN DATENAME(WEEKDAY, apc.Discharge_Date) IN ('Saturday','Sunday') THEN 'Weekend' ELSE 'Weekday' END,
+        apc.Discharge_Date
+),
+
+final_data AS (
+
+    SELECT
+        Provider_Current,
+        Organisation_Name,
+        STP_Code,
+        STP_Name,
+        LOS,
+        Der_Management_Type,
+        Day_Type,
+        Day_of_Week,
+        YearMonth,
+        SUM(Daily_Discharges) AS Total_Discharges,
+        COUNT(DISTINCT Discharge_Date) AS Number_of_Days
+    FROM daily_discharge_base
+    GROUP BY
+        Provider_Current,
+        Organisation_Name,
+        STP_Code,
+        STP_Name,
+        LOS,
+        Der_Management_Type,
+        Day_Type,
+        Day_of_Week,
+        YearMonth
+)
+
+-- 🔹 ORIGINAL DATA
+SELECT * FROM final_data
+
+UNION ALL
+
+-- 🔹 SOUTH WEST TOTAL
+SELECT
+    'South West Total' AS Provider_Current,  -- optional (or NULL if you prefer)
+    'South West Total' AS Organisation_Name,
+    'South West Total' AS STP_Code,
+    'South West Total' AS STP_Name,
+    LOS,
+    Der_Management_Type,
+    Day_Type,
+    Day_of_Week,
+    YearMonth,
+    SUM(Total_Discharges),
+    SUM(Number_of_Days)
+FROM final_data
+GROUP BY
+    LOS,
+    Der_Management_Type,
+    Day_Type,
+    Day_of_Week,
+    YearMonth
+
+ORDER BY
+    Provider_Current,
+    Der_Management_Type,
+    LOS,
+    YearMonth,
+    Day_Type,
+    Day_of_Week;

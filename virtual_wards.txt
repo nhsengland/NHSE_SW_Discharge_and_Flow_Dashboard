@@ -1,0 +1,249 @@
+with cte_raw as (SELECT 
+      v.[virtual_ward_id]
+      ,v.[NHS_Region_Id_ODS]
+      ,v.[ICS_Code]
+  
+      ,sum(cast(v.[Occupancy] as numeric) ) as total_number_of_patients_on_ward
+	  ,SUM(cast(v.[Capacity]as numeric) ) as current_capacity
+      ,cast(v.[Submission_Period] as date) as ReportingDate
+    ,cast(d.Week_End as date) as Week_End
+  ,case when v.[virtual_ward_id] in ('be2a0db0-91ef-4cfb-86d4-b0fa4fc1a35c','4a7f33b500faf47cf8b16190c5571722') then 'Bath And North East Somerset, Swindon And Wiltshire STP' else  s.STP_Name end as STP_Name
+  ,case when v.[virtual_ward_id] in ('be2a0db0-91ef-4cfb-86d4-b0fa4fc1a35c','4a7f33b500faf47cf8b16190c5571722') then 'QOX' else S.STP_Code end as STP_Code
+  FROM [FOUNDRY_VirtualWardsTimeseries].[VirtualWards_Timeseries] as v
+
+  left join [Internal_Reference].[STP_Codes] as s
+  on v.[ICS_Code] = s.STP_Code_ODS
+
+  left join [Internal_Reference].[Date_Full] as d
+  on cast(v.[Submission_Period] as date) = d.Full_Date
+    WHERE  (v.[NHS_Region_Id_ODS] = 'E40000006' or v.[virtual_ward_id] ='4a7f33b500faf47cf8b16190c5571722')
+	
+	group by
+	    v.[virtual_ward_id]
+      ,v.[NHS_Region_Id_ODS]
+      ,v.[ICS_Code]
+	  ,cast(v.[Submission_Period] as date) 
+    ,d.Week_End
+	,s.STP_Name
+	,S.STP_Code
+	)
+		
+		
+		,CTE_agg AS 
+	(
+	SELECT [virtual_ward_id]
+	,STP_Name
+	,WEEK_END
+	, STP_CODE
+	,SUM(total_number_of_patients_on_ward) AS 'total_number_of_patients_on_ward'
+	,SUM(current_capacity) AS 'current_capacity'
+
+	FROM CTE_raw
+	
+	GROUP BY [virtual_ward_id],STP_Name,WEEK_END, STP_CODE)
+		
+		
+		
+
+
+ ,CTE_cap AS (
+ SELECT STP_Name,WEEK_END, STP_CODE,SUM(total_number_of_patients_on_ward) AS total_number_of_patients_on_ward, SUM(current_capacity) AS 'current_capacity' 
+ FROM CTE_Agg
+
+ GROUP BY STP_Name,WEEK_END, STP_CODE)
+
+ --,cte_alldates as (
+	--SELECT I.* FROM CTE_cap AS I)
+
+	,CTE_POP1 AS (SELECT  DISTINCT a.*,c.Region_Code
+
+  FROM [UKHF_Demography].[No_Of_Patients_Regd_At_GP_Prac_Regions_Single_Age1] as a
+  left join [Reporting_UKHD_ODS].[Commissioner_Hierarchies] as c on a.[Org_Code] = c.[STP_Code]
+where a.effective_snapshot_date in ('2026-04-01','2025-04-01')
+and a.org_type = 'ICB'
+and a.age <> 'All'
+--and a.age not in  ('0','All','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15')
+and c.[Region_Code] = 'Y58')
+ 
+ ,CTE_POP AS (
+ SELECT ORG_CODE, CASE
+WHEN MONTH(effective_snapshot_date) <= 3 THEN
+CAST(YEAR(effective_snapshot_date) - 1 AS VARCHAR(4)) + '-' + CAST(YEAR(effective_snapshot_date) AS VARCHAR(4))
+ELSE
+CAST(YEAR(effective_snapshot_date) AS VARCHAR(4)) + '-' + CAST(YEAR(effective_snapshot_date) + 1 AS VARCHAR(4))
+END AS FinancialYear,SUM([Number_of_Patients]) AS [Population]
+ FROM CTE_POP1
+
+
+
+ GROUP BY ORG_CODE ,effective_snapshot_date)
+
+ ,cte_prep as (
+ select c.* ,m.Year_Month from cte_cap as c
+
+ left join ( select distinct cast(week_end as date) as 'Week_end'
+ from [Internal_Reference].[Date_Full]) as d on c.Week_End = d.Week_end
+
+left join [Internal_Reference].[Date_Full] as m on d.week_end= m.Full_Date)
+
+
+
+ ,cte_final as (
+ select
+  STP_Name,WEEK_END, STP_CODE,Year_Month,total_number_of_patients_on_ward,current_capacity
+  ,Row_number() over (partition by Year_Month,stp_name order by week_end desc) as 'LastWkinMonth'
+  from cte_prep
+  
+ 
+  
+  )
+
+  
+
+,cte_dir as (SELECT 
+      v.[virtual_ward_id]
+      ,v.[submitting_region_id]
+      ,v.[submitting_stp_code]
+
+	  ,sum(TRY_CAST(v.[referral_route_outpatient_department] as numeric) +
+	  TRY_CAST(v.[referral_route_emergency_department] as numeric) +
+	  TRY_CAST(v.[referral_route_general_medical_practitioner_practice] as numeric)+
+	  TRY_CAST(v.[referral_route_mental_health_service] as numeric)+
+	 TRY_CAST(v.[referral_route_community_Health_service] as numeric)+
+	  TRY_CAST(v.[referral_route_NHS_111] as numeric)+
+	  TRY_CAST(v.[referral_route_NHS_999] as numeric)+
+	  TRY_CAST(v.[referral_route_SDEC] as numeric)+
+	  TRY_CAST(v.[referral_route_urgent_community_response] as numeric)+
+	  TRY_CAST(v.[referral_route_other_or_not_known] as numeric))
+	  as 'Step_Up'
+      ,sum(TRY_CAST(v.[referral_route_acute_hospital_inpatient_department] as numeric) ) as 'Step_Down'
+      ,TRY_CAST(v.[submitted_at] as date) as ReportingDate
+    ,TRY_CAST(d.Week_End as date) as Week_End
+  ,case when v.[virtual_ward_id] in ('be2a0db0-91ef-4cfb-86d4-b0fa4fc1a35c','4a7f33b500faf47cf8b16190c5571722') then 'Bath And North East Somerset, Swindon And Wiltshire STP' else  s.STP_Name end as STP_Name
+  ,case when v.[virtual_ward_id] in ('be2a0db0-91ef-4cfb-86d4-b0fa4fc1a35c','4a7f33b500faf47cf8b16190c5571722') then 'QOX' else S.STP_Code end as STP_Code
+  FROM [Foundry_VirtualWards].[VirtualWards_Sitrep_Edited] as v
+
+  left join [Internal_Reference].[STP_Codes] as s
+  on v.submitting_stp_code = s.STP_Code_ODS
+
+  left join [Internal_Reference].[Date_Full] as d
+  on TRY_CAST([submitted_at] as date) = d.Full_Date
+    WHERE  ([submitting_region_id] = 'E40000006' or v.[virtual_ward_id] = '4a7f33b500faf47cf8b16190c5571722')
+	
+	group by
+	v.[virtual_ward_id]
+      ,v.[submitting_region_id]
+      ,v.[submitting_stp_code]
+	  ,TRY_CAST(v.[submitted_at] as date) 
+    ,d.Week_End
+	,s.STP_Name
+	,S.STP_Code
+	)
+		
+	,cte_main as (	 
+   select 'Virtual Wards'  as 'Table' , 
+  Year(WEEK_END) as 'Year', 
+  month(week_end) as 'Month',
+  CASE
+WHEN MONTH(week_end) <= 3 THEN
+CAST(YEAR(week_end) - 1 AS VARCHAR(4)) + '-' + CAST(YEAR(week_end) AS VARCHAR(4))
+ELSE
+CAST(YEAR(week_end) AS VARCHAR(4)) + '-' + CAST(YEAR(week_end) + 1 AS VARCHAR(4))
+END AS FinancialYear,
+  'NA' as 'Org_Code', 
+  'NA' as 'Organisation_Name',
+  'NA' as 'Site Code',
+  'VW_Cap' as 'Metric_ID',
+  'Number of VW beds available' as 'Metric_Name',
+   stp_code,
+  STP_Name,
+  current_capacity  AS 'Val'
+  ,Year_Month
+
+
+  from cte_final where LastWkinMonth = '1' and Week_End>='2024-09-01'
+
+
+
+  union
+
+  select 'Virtual Wards'  as 'Table' , 
+  Year(WEEK_END) as 'Year', 
+  month(week_end) as 'Month',
+  CASE
+WHEN MONTH(week_end) <= 3 THEN
+CAST(YEAR(week_end) - 1 AS VARCHAR(4)) + '-' + CAST(YEAR(week_end) AS VARCHAR(4))
+ELSE
+CAST(YEAR(week_end) AS VARCHAR(4)) + '-' + CAST(YEAR(week_end) + 1 AS VARCHAR(4))
+END AS FinancialYear,
+  'NA' as 'Org_Code', 
+  'NA' as 'Organisation_Name',
+  'NA' as 'Site Code',
+  'VW_Occ' as 'Metric_ID',
+  'Number of VW beds occupied' as 'Metric_Name',
+   stp_code,
+  STP_Name,
+ total_number_of_patients_on_ward  AS 'Val'
+   ,Year_Month
+
+
+  from cte_final where LastWkinMonth = '1' and Week_End>='2024-09-01'
+
+   union
+
+  select 'Virtual Wards'  as 'Table' , 
+  '2026' as 'Year', 
+  '04' as 'Month',
+  FinancialYear,
+  'NA' as 'Org_Code', 
+  'NA' as 'Organisation_Name',
+  'NA' as 'Site Code',
+  'VW_Reg_Pop' as 'Metric_ID',
+  'Registered GP Population' as 'Metric_Name',
+  p.org_code,
+  S.STP_Name,
+  [Population] AS 'Val'
+   ,'202604' as Year_Month
+
+
+  from cte_pop  AS P
+
+    left join [Internal_Reference].[STP_Codes] as s
+  on P.[Org_Code] = s.STP_Code_ODS)
+
+
+  select * from cte_main
+
+  union
+
+
+  
+  select [Table] , 
+  [Year], 
+  [Month],
+  [FinancialYear],
+  'South West Total' AS [Org_Code], 
+  'South West Total' AS [Organisation_Name],
+  'South West Total' AS 'Site Code',
+  [Metric_ID],
+  [Metric_Name],
+  'South West Total' AS stp_code,
+  'South West Total' AS STP_Name,
+  sum([Val]) as 'Val'
+   ,Year_Month
+
+   from cte_main
+
+   GROUP BY   [Table] , 
+  [Year], 
+  [Month],
+  [FinancialYear],
+  [Metric_ID],
+  [Metric_Name]
+   ,Year_Month
+
+    
+    
+
+
+  

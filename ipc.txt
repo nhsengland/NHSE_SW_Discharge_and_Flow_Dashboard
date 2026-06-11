@@ -1,0 +1,70 @@
+;with cte_main as (SELECT        'Discharge' AS 'Table'
+    , cast([Date] AS date) AS 'Date'
+    , [Org_Code], [Organisation_Name]
+    , CASE WHEN [Metric_ID] = 'DIS005b_Total' 
+                AND [Period] < '2024-05-27' 
+              THEN '21d' 
+            WHEN [Metric_ID] = 'DIS006_TOTAL' 
+                AND [Period] >= '2024-05-27' THEN '21d' /*WHEN [Metric_ID] = 'DIS008b_TOTAL' and [Period] >= '2024-05-27' THEN '21d' */ 
+            WHEN [Metric_ID] = 'DIS003_Total' THEN 'DIS004a_Total' 
+            WHEN [Metric_ID] = 'DIS003b_TOTAL' THEN 'DIS004b_Total'
+                 ELSE Metric_ID END AS 'Met_id_adj'
+    ,CASE   WHEN [Metric_ID] = 'DIS002_Total' THEN 'The number of people who do not meet the criteria to reside that day' 
+            WHEN [Metric_ID] = 'DIS003_TOTAL' THEN 'Of the total number of people who do not meet the criteria to reside that day: the number of people who were discharged by 17.00'
+            WHEN [Metric_ID] = 'DIS003b_TOTAL' THEN 'Of the total number of people who do not meet the criteria to reside that day: the number of people who were discharged between 17.01 and 23.59'
+                ELSE [Metric_Name] END AS [Metric_Name]
+    , CASE  WHEN [STP_Name] = 'NHS BATH AND NORTH EAST SOMERSET, SWINDON AND WILTSHIRE INTEGRATED CARE BOARD' THEN 'Bath And North East Somerset, Swindon And Wiltshire STP'
+            WHEN [STP_Name] = 'NHS BRISTOL, NORTH SOMERSET AND SOUTH GLOUCESTERSHIRE INTEGRATED CARE BOARD' THEN 'Bristol, North Somerset And South Gloucestershire STP'
+            WHEN [STP_Name] = 'NHS CORNWALL AND THE ISLES OF SCILLY INTEGRATED CARE BOARD' THEN 'Cornwall And The Isles Of Scilly Health & Social Care Partnership (STP)'
+            WHEN [STP_Name] = 'NHS DEVON INTEGRATED CARE BOARD' THEN 'Devon STP'	
+            WHEN [STP_Name] = 'NHS DORSET INTEGRATED CARE BOARD' THEN 'Dorset STP'
+            WHEN [STP_Name] = 'NHS GLOUCESTERSHIRE INTEGRATED CARE BOARD' THEN 'Gloucestershire STP'
+            WHEN [STP_Name] = 'NHS SOMERSET INTEGRATED CARE BOARD' THEN 'Somerset STP'
+                ELSE [STP_Name] END AS [STP_Name]
+    , sum(cast([Metric_Value] AS int)) AS 'Val'
+
+
+
+FROM           [Reporting].[SEFT_CovidSitreps_Discharge_DashboardMetrics]
+
+WHERE        Region = 'South West' AND [Period] >= GETDATE() - 740 /*  and [Period] <= @_date*/ AND Metric_ID IN ('DIS002_Total', 'DIS003_Total', 'DIS004a_Total', 'DIS003b_Total', 'DIS004b_Total', 'DIS005b_Total', 'DIS006_Total')
+
+GROUP BY Date, Org_Code, Organisation_Name, STP_Name, Metric_ID, Metric_Name, [Period]
+
+UNION ALL
+
+SELECT        'AE' AS 'Table', cast([Period] AS date) AS 'Date', [OrgCode], [Trust_Name], [MetricName], [MetricName]
+, CASE  WHEN [STP] = 'NHS BATH AND NORTH EAST SOMERSET, SWINDON AND WILTSHIRE INTEGRATED CARE BOARD' THEN 'Bath And North East Somerset, Swindon And Wiltshire STP'
+            WHEN [STP] = 'NHS BRISTOL, NORTH SOMERSET AND SOUTH GLOUCESTERSHIRE INTEGRATED CARE BOARD' THEN 'Bristol, North Somerset And South Gloucestershire STP'
+            WHEN [STP] = 'NHS CORNWALL AND THE ISLES OF SCILLY INTEGRATED CARE BOARD' THEN 'Cornwall And The Isles Of Scilly Health & Social Care Partnership (STP)'
+            WHEN [STP] = 'NHS DEVON INTEGRATED CARE BOARD' THEN 'Devon STP'	
+            WHEN [STP] = 'NHS DORSET INTEGRATED CARE BOARD' THEN 'Dorset STP'
+            WHEN [STP] = 'NHS GLOUCESTERSHIRE INTEGRATED CARE BOARD' THEN 'Gloucestershire STP'
+            WHEN [STP] = 'NHS SOMERSET INTEGRATED CARE BOARD' THEN 'Somerset STP'
+                ELSE [STP] END AS [STP]
+ , sum([Value]) AS 'Val'
+
+FROM             [Reporting_DCF_EmergencyCare].[AnEDashboardMetricsTransposedDataTransport_Consolidated]
+
+WHERE        Region_Name = 'South West' AND Period >= GETDATE() - 740 /*  and [Period] <= @_date*/ AND ([MetricName] IN ('Number_of_Admissions', 'AdultBedsClosedOtherUnoccupied', 'AdultTotalG&A_BedsOccupied', 
+                         'AdultBedsClosedOther', 'AdultBedsClosedD&VUnoccupied', 'UnavailableBedStrandedPatients', 'G&ATotalBedsOccupied', 'G&ATotalBedsOpen', 'AdultEscalationG&A_BedsOpen', 'AdultCoreG&A_BedsOpen', 'G&AFluBeds', 
+                         'AdultTotalG&A_BedsOpen', 'Beds_occupied_by_long_stay_patients_14_plus_days', 'AdultBedsClosedD&V', 'Extended_Patients_Occupied', 'AdultBedsClosedCovid', 'EmergencyAdmissions', 'Number_of_Admissions', 
+                         'EmergencyAdmissionsA&E', 'AdultBedsClosedCovidUnoccupied'))
+
+GROUP BY cast([Period] AS date), OrgCode, Trust_Name, STP, MetricName)
+
+select * from cte_main
+
+union
+SELECT        [Table]
+    , [Date] 
+    , 'South West Total' AS [OrgCode],
+
+    'South West Total' AS [Organisation_Name]
+    
+    , [Met_id_adj]
+    , [Metric_Name]
+    , 'South West Total' AS STP_Name
+    , sum(Val) as 'Val'
+    from cte_main
+    GROUP BY [Table],[Date],[Met_id_adj], Metric_Name

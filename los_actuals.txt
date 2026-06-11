@@ -1,0 +1,172 @@
+WITH CTE_BED AS ( 
+ 
+SELECT
+    CASE 
+        WHEN Der_Provider_Code = 'RD3' THEN 'R0D'
+        WHEN Der_Provider_Code = 'RDZ' THEN 'R0D'
+        WHEN Der_Provider_Code = 'RBZ' THEN 'RH8'
+        WHEN Der_Provider_Code = 'RA3' THEN 'RA7'
+        WHEN Der_Provider_Code = 'RBA' THEN 'RH5'
+        WHEN Der_Provider_Code = 'R1G' THEN 'RA9'
+        WHEN Der_Provider_Code = 'RVJ13' THEN 'RVJ'
+        WHEN Der_Provider_Code = 'RA4' THEN 'RH5'
+        ELSE Der_Provider_Code 
+    END AS Der_Provider_Code,
+
+    CASE 
+        WHEN o.organisation_name = 'ROYAL DEVON AND EXETER NHS FOUNDATION TRUST' 
+            THEN 'ROYAL DEVON UNIVERSITY HEALTHCARE NHS FOUNDATION TRUST'
+        WHEN o.organisation_name = 'TAUNTON AND SOMERSET NHS FOUNDATION TRUST' 
+            THEN 'SOMERSET NHS FOUNDATION TRUST'
+        WHEN o.organisation_name = 'NORTHERN DEVON HEALTHCARE NHS TRUST' 
+            THEN 'ROYAL DEVON UNIVERSITY HEALTHCARE NHS FOUNDATION TRUST'
+        WHEN o.organisation_name = 'THE ROYAL BOURNEMOUTH AND CHRISTCHURCH HOSPITALS NHS FOUNDATION TRUST' 
+            THEN 'UNIVERSITY HOSPITAL DORSET NHS FOUNDATION TRUST'
+        WHEN o.organisation_name = 'POOLE HOSPITAL NHS FOUNDATION TRUST' 
+            THEN 'UNIVERSITY HOSPITAL DORSET NHS FOUNDATION TRUST'
+        WHEN o.organisation_name = 'TORBAY AND SOUTHERN DEVON HEALTH AND CARE NHS TRUST' 
+            THEN 'TORBAY AND SOUTH DEVON NHS FOUNDATION TRUST'
+        WHEN o.organisation_name = 'EMERSONS GREEN NHS TREATMENT CENTRE' 
+            THEN 'NORTH BRISTOL NHS TRUST'
+        WHEN o.organisation_name = 'YEOVIL DISTRICT HOSPITAL NHS FOUNDATION TRUST'	 
+            THEN 'SOMERSET NHS FOUNDATION TRUST'
+        WHEN o.Organisation_Name = 'UNIVERSITY HOSPITALS BRISTOL NHS FOUNDATION TRUST' 
+            THEN 'UNIVERSITY HOSPITALS BRISTOL AND WESTON NHS FOUNDATION TRUST'
+        ELSE o.organisation_name  
+    END AS organisation_name,
+
+    o.STP_Name,
+    o.STP_Code,
+
+    CONCAT(YEAR(Discharge_Date), FORMAT(MONTH(Discharge_Date), '00')) AS YearMonth,
+
+    CASE 
+        WHEN Der_Management_Type = 'EM' THEN 'NE' 
+        ELSE Der_Management_Type 
+    END AS Der_Management_Type,
+
+    CASE 
+        WHEN Spell_LoS = 0 THEN '0 Day LOS' 
+        ELSE '1+Day LOS'
+    END AS LOS,
+ 
+    SUM(Spell_LoS) AS losadj,
+    COUNT(CAST(apc.[APCS_Ident] AS VARCHAR)) AS Total_Activity
+
+FROM [MESH_APC].[APCS_Core_Daily] apc
+
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies] o
+    ON apc.Der_Provider_Code = o.Organisation_Code
+
+LEFT JOIN [MESH_APC].[APCS_2526_Der_Daily] c
+    ON apc.APCS_Ident = c.[APCS_Ident]
+
+LEFT JOIN [Internal_Reference].[UCSM_RefTFCs] r
+    ON apc.Der_Dischg_Treatment_Function_Code = r.Treatment_Function_Code
+
+WHERE
+    apc.Discharge_Date >= DATEADD(
+        MONTH,
+        -24,
+        DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+    )
+    AND apc.Discharge_Date < DATEFROMPARTS(
+        YEAR(GETDATE()),
+        MONTH(GETDATE()),
+        1
+    )
+   
+    AND Der_Management_Type IN ('EM','NE')
+
+    AND Der_Provider_Code IN (
+        'RD1',
+        'RN3',
+        'RNZ',
+        'RA7',
+        'RVJ',
+        'REF',
+        'RA9',
+        'RH8',
+        'RK9',
+        'RBD',
+        'R0D',
+        'RTE',
+        'RH5'
+    )
+
+    AND Der_Dischg_Treatment_Function_Code NOT IN (
+        '199', '223', '290', '291', '331', '344', '345', '346', 
+        '360', '424', '499', '501', '504', '560', '650', '651', 
+        '652', '653', '654', '655', '656', '657', '658', '659', 
+        '660', '661', '662', '700', '710', '711', '712', '713', 
+        '715', '720', '721', '722', '723', '724', '725', '726', 
+        '727', '730', '840', '920', 'NULL'
+    ) 
+
+    AND c.Responsible_Purchaser_Assignment_Method NOT IN (
+        'Reciprocal OSVs',
+        'Non-reciprocal OSVs',
+        'Private Patient',
+        'Devolved Administration'
+    )
+
+GROUP BY
+    Der_Provider_Code,
+    o.organisation_name,
+    o.STP_Name,
+    o.STP_Code,
+    Discharge_Date,
+    Der_Management_Type,
+    apc.[APCS_Ident],
+    Spell_LoS
+)
+
+-- ORIGINAL DATA
+SELECT
+    Der_Provider_Code,
+    organisation_name,
+    STP_Name,
+    STP_Code,
+    YearMonth,
+    Der_Management_Type,
+    LOS,
+    losadj,
+    SUM(Total_Activity) AS Total_Activity,
+    SUM(Total_Activity) * (losadj) AS TotalBedDays
+
+FROM CTE_BED
+
+GROUP BY
+    Der_Provider_Code,
+    organisation_name,
+    STP_Name,
+    STP_Code,
+    YearMonth,
+    Der_Management_Type,
+    LOS,
+    losadj,
+    Total_Activity
+
+UNION ALL
+
+-- SOUTH WEST TOTAL
+SELECT
+    'South West Total' AS Der_Provider_Code,
+    'South West Total' AS organisation_name,
+    'South West Total' AS STP_Name,
+    'South West Total' AS STP_Code,
+    YearMonth,
+    Der_Management_Type,
+    LOS,
+    losadj,
+    SUM(Total_Activity) AS Total_Activity,
+    SUM(Total_Activity) * (losadj) AS TotalBedDays
+
+FROM CTE_BED
+
+GROUP BY
+    YearMonth,
+    Der_Management_Type,
+    LOS,
+    losadj,
+    Total_Activity

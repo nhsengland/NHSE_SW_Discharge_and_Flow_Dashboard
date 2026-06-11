@@ -1,0 +1,321 @@
+-- Original data: AE
+SELECT        
+    'AE' AS [Table],
+    CAST([Period] AS date) AS [Date],
+    [OrgCode] AS Org_Code,
+    Site_name,
+    [MetricName] AS Metric_ID,
+    [MetricName] AS Metric_Name,
+    NULL AS STP_Code,
+    NULL AS STP_Name,
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Period] AS date)) IN ('Saturday', 'Sunday')
+            THEN 'Weekend'
+        ELSE 'Weekday'
+    END AS Weekend_Weekday,
+    CAST(NULL AS varchar(50)) AS Combined_Status,
+    CAST(NULL AS varchar(50)) AS Pathway,
+    CAST(NULL AS varchar(10)) AS Days,
+    CASE
+        WHEN [MetricName] IN (
+            'AdultTotalG&A_BedsOccupied',
+            'Beds_occupied_by_long_stay_patients_14_plus_days',
+            'Extended_Patients_Occupied',
+            'UnavailableBedStrandedPatients'
+        ) THEN 'Long Stay Patients'
+        ELSE 'NCTR Patients'
+    END AS Category,
+    SUM([Value]) AS Val,
+    NULL AS days_sort
+FROM [Reporting_DCF_EmergencyCare].[AnEDashboardMetricsTransposedDataTransport_Consolidated]
+WHERE
+    Region_Name = 'South West'
+    AND Period >= GETDATE() - 168
+    AND [MetricName] IN (
+        'AdultTotalG&A_BedsOccupied',
+        'AdultTotalG&A_BedsOpen',
+        'AE_Attendances',
+        'AE_Breaches',
+        'Attendances_Type1',
+        'Beds_occupied_by_long_stay_patients_14_plus_days',
+        'Breaches_Type1',
+        'ECDS_Attends_Greater_12hrs',
+        'ECDS_Total_Attendances_12hrs_Denom',
+        'Extended_Patients_Occupied',
+        'UnavailableBedStrandedPatients'
+    )
+GROUP BY
+    CAST([Period] AS date),
+    OrgCode,
+    Site_name,
+    MetricName,
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Period] AS date)) IN ('Saturday', 'Sunday')
+            THEN 'Weekend'
+        ELSE 'Weekday'
+    END
+
+UNION ALL
+
+-- Original data: Discharge
+SELECT        
+    'Discharge' AS [Table],
+    CAST([Date] AS date) AS [Date],
+    [Org_Code],
+    'NA' AS Site_name,
+    [Metric_ID],
+    Metric_Name,
+    STP_Code,
+    STP_Name,
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Date] AS date)) IN ('Saturday', 'Sunday')
+            THEN 'Weekend'
+        ELSE 'Weekday'
+    END AS Weekend_Weekday,
+    CASE
+        WHEN Metric_ID LIKE 'DIS008b_A%' THEN 'Hospital 21+ Days'
+        WHEN Metric_ID LIKE 'DIS008b_B%' THEN 'Wellbeing 21+ Days'
+        WHEN Metric_ID LIKE 'DIS008b_C%' THEN 'Care transfer hub 21+ Days'
+        WHEN Metric_ID LIKE 'DIS008b_D%' THEN 'Interface 21+ Days'
+        WHEN Metric_ID LIKE 'DIS008b_E%' THEN 'Capacity 21+ Days'
+        WHEN Metric_ID LIKE 'DIS009b_A%' THEN 'Hospital 14+ Days'
+        WHEN Metric_ID LIKE 'DIS009b_B%' THEN 'Wellbeing 14+ Days'
+        WHEN Metric_ID LIKE 'DIS009b_C%' THEN 'Care transfer hub 14+ Days'
+        WHEN Metric_ID LIKE 'DIS009b_D%' THEN 'Interface 14+ Days'
+        WHEN Metric_ID LIKE 'DIS009b_E%' THEN 'Capacity 14+ Days'
+        WHEN Metric_ID LIKE 'DIS010b_A%' THEN 'Hospital 7+ Days'
+        WHEN Metric_ID LIKE 'DIS010b_B%' THEN 'Wellbeing 7+ Days'
+        WHEN Metric_ID LIKE 'DIS010b_C%' THEN 'Care transfer hub 7+ Days'
+        WHEN Metric_ID LIKE 'DIS010b_D%' THEN 'Interface 7+ Days'
+        WHEN Metric_ID LIKE 'DIS010b_E%' THEN 'Capacity 7+ Days'
+        ELSE NULL
+    END AS Combined_Status,
+    CASE
+        WHEN Metric_ID LIKE 'DIS008b_A%' THEN 'Hospital'
+        WHEN Metric_ID LIKE 'DIS008b_B%' THEN 'Wellbeing'
+        WHEN Metric_ID LIKE 'DIS008b_C%' THEN 'Care transfer hub'
+        WHEN Metric_ID LIKE 'DIS008b_D%' THEN 'Interface'
+        WHEN Metric_ID LIKE 'DIS008b_E%' THEN 'Capacity'
+        WHEN Metric_ID LIKE 'DIS009b_A%' THEN 'Hospital'
+        WHEN Metric_ID LIKE 'DIS009b_B%' THEN 'Wellbeing'
+        WHEN Metric_ID LIKE 'DIS009b_C%' THEN 'Care transfer hub'
+        WHEN Metric_ID LIKE 'DIS009b_D%' THEN 'Interface'
+        WHEN Metric_ID LIKE 'DIS009b_E%' THEN 'Capacity'
+        WHEN Metric_ID LIKE 'DIS010b_A%' THEN 'Hospital'
+        WHEN Metric_ID LIKE 'DIS010b_B%' THEN 'Wellbeing'
+        WHEN Metric_ID LIKE 'DIS010b_C%' THEN 'Care transfer hub'
+        WHEN Metric_ID LIKE 'DIS010b_D%' THEN 'Interface'
+        WHEN Metric_ID LIKE 'DIS010b_E%' THEN 'Capacity'
+        ELSE NULL
+    END AS Pathway,
+    CASE
+        WHEN Metric_ID LIKE 'DIS008b_%' THEN '21+'
+        WHEN Metric_ID LIKE 'DIS009b_%' THEN '14+'
+        WHEN Metric_ID LIKE 'DIS010b_%' THEN '7+'
+        ELSE NULL
+    END AS Days,
+    'NCTR Patients' AS Category,
+    SUM(CAST([Metric_Value] AS decimal)) AS Val,
+    CASE
+        WHEN Metric_ID LIKE 'DIS010b_%' THEN 1
+        WHEN Metric_ID LIKE 'DIS009b_%' THEN 2
+        WHEN Metric_ID LIKE 'DIS008b_%' THEN 3
+        ELSE NULL
+    END AS days_sort
+FROM [Reporting].[SEFT_CovidSitreps_Discharge_DashboardMetrics_ConsolidatedPeriod]
+WHERE
+    Region = 'South West'
+    AND [Period] >= GETDATE() - 21
+    AND (
+        Metric_ID IN ('DIS001_TOTAL', 'DIS002_TOTAL','DIS005_TOTAL','DIS006_TOTAL')
+        OR Metric_ID LIKE 'DIS007%'
+        OR Metric_ID LIKE 'DIS008%'
+        OR Metric_ID LIKE 'DIS009%'
+        OR Metric_ID LIKE 'DIS010%'
+        OR Metric_ID LIKE 'DIS004%'
+    )
+GROUP BY
+    Org_Code,
+    Metric_ID,
+    Metric_Name,
+    CAST([Date] AS date),
+    STP_Code,
+    STP_Name,
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Date] AS date)) IN ('Saturday', 'Sunday')
+            THEN 'Weekend'
+        ELSE 'Weekday'
+    END
+
+UNION ALL
+
+-- South West Total
+SELECT
+    [Table],
+    [Date],
+    'South West Total' AS Org_Code,
+    CASE WHEN [Table] = 'AE' THEN 'South West Total' ELSE Site_name END AS Site_name,
+    Metric_ID,
+    Metric_Name,
+    STP_Code,
+    CASE WHEN [Table] = 'Discharge' THEN 'South West Total' ELSE NULL END AS STP_Name,
+    Weekend_Weekday,
+    Combined_Status,
+    Pathway,
+    Days,
+    Category,
+    SUM(Val) AS Val,
+    CASE
+        WHEN Days = '7+' THEN 1
+        WHEN Days = '14+' THEN 2
+        WHEN Days = '21+' THEN 3
+        ELSE NULL
+    END AS days_sort
+FROM
+(
+    -- AE
+    SELECT        
+        'AE' AS [Table],
+        CAST([Period] AS date) AS [Date],
+        [OrgCode] AS Org_Code,	 
+        Site_name,	 	 
+        [MetricName] AS Metric_ID,	 
+        [MetricName] AS Metric_Name,
+        NULL AS STP_Code,
+        NULL AS STP_Name,
+        CASE
+            WHEN DATENAME(WEEKDAY, CAST([Period] AS date)) IN ('Saturday', 'Sunday')
+                THEN 'Weekend'
+            ELSE 'Weekday'
+        END AS Weekend_Weekday,
+        CAST(NULL AS varchar(50)) AS Combined_Status,
+        CAST(NULL AS varchar(50)) AS Pathway,
+        CAST(NULL AS varchar(10)) AS Days,
+        CASE
+            WHEN [MetricName] IN (
+                'AdultTotalG&A_BedsOccupied',
+                'Beds_occupied_by_long_stay_patients_14_plus_days',
+                'Extended_Patients_Occupied',
+                'UnavailableBedStrandedPatients'
+            ) THEN 'Long Stay Patients'
+            ELSE 'NCTR Patients'
+        END AS Category,
+        SUM([Value]) AS Val
+    FROM [Reporting_DCF_EmergencyCare].[AnEDashboardMetricsTransposedDataTransport_Consolidated]
+    WHERE
+        Region_Name = 'South West'
+        AND Period >= GETDATE() - 365
+        AND [MetricName] IN (
+            'AdultTotalG&A_BedsOccupied',
+            'AdultTotalG&A_BedsOpen',
+            'AE_Attendances',
+            'AE_Breaches',
+            'Attendances_Type1',
+            'Beds_occupied_by_long_stay_patients_14_plus_days',
+            'Breaches_Type1',
+            'ECDS_Attends_Greater_12hrs',
+            'ECDS_Total_Attendances_12hrs_Denom',
+            'Extended_Patients_Occupied',
+            'UnavailableBedStrandedPatients'
+        )
+    GROUP BY
+        CAST([Period] AS date),
+        OrgCode,
+        Site_name,
+        MetricName,
+        CASE
+            WHEN DATENAME(WEEKDAY, CAST([Period] AS date)) IN ('Saturday', 'Sunday')
+                THEN 'Weekend'
+            ELSE 'Weekday'
+        END
+
+    UNION ALL
+
+    -- Discharge
+    SELECT        
+        'Discharge' AS [Table],
+        CAST([Date] AS date) AS [Date],
+        [Org_Code],
+        'NA' AS Site_name,
+        [Metric_ID],
+        Metric_Name,
+        STP_Code,
+        STP_Name,
+        CASE
+            WHEN DATENAME(WEEKDAY, CAST([Date] AS date)) IN ('Saturday', 'Sunday')
+                THEN 'Weekend'
+            ELSE 'Weekday'
+        END AS Weekend_Weekday,
+        CASE
+            WHEN Metric_ID LIKE 'DIS008b_A%' THEN 'Hospital 21+ Days'
+            WHEN Metric_ID LIKE 'DIS008b_B%' THEN 'Wellbeing 21+ Days'
+            WHEN Metric_ID LIKE 'DIS008b_C%' THEN 'Care transfer hub 21+ Days'
+            WHEN Metric_ID LIKE 'DIS008b_D%' THEN 'Interface 21+ Days'
+            WHEN Metric_ID LIKE 'DIS008b_E%' THEN 'Capacity 21+ Days'
+            WHEN Metric_ID LIKE 'DIS009b_A%' THEN 'Hospital 14+ Days'
+            WHEN Metric_ID LIKE 'DIS009b_B%' THEN 'Wellbeing 14+ Days'
+            WHEN Metric_ID LIKE 'DIS009b_C%' THEN 'Care transfer hub 14+ Days'
+            WHEN Metric_ID LIKE 'DIS009b_D%' THEN 'Interface 14+ Days'
+            WHEN Metric_ID LIKE 'DIS009b_E%' THEN 'Capacity 14+ Days'
+            WHEN Metric_ID LIKE 'DIS010b_A%' THEN 'Hospital 7+ Days'
+            WHEN Metric_ID LIKE 'DIS010b_B%' THEN 'Wellbeing 7+ Days'
+            WHEN Metric_ID LIKE 'DIS010b_C%' THEN 'Care transfer hub 7+ Days'
+            WHEN Metric_ID LIKE 'DIS010b_D%' THEN 'Interface 7+ Days'
+            WHEN Metric_ID LIKE 'DIS010b_E%' THEN 'Capacity 7+ Days'
+            ELSE NULL
+        END AS Combined_Status,
+        CASE
+            WHEN Metric_ID LIKE 'DIS008b_A%' THEN 'Hospital'
+            WHEN Metric_ID LIKE 'DIS008b_B%' THEN 'Wellbeing'
+            WHEN Metric_ID LIKE 'DIS008b_C%' THEN 'Care transfer hub'
+            WHEN Metric_ID LIKE 'DIS008b_D%' THEN 'Interface'
+            WHEN Metric_ID LIKE 'DIS008b_E%' THEN 'Capacity'
+            WHEN Metric_ID LIKE 'DIS009b_A%' THEN 'Hospital'
+            WHEN Metric_ID LIKE 'DIS009b_B%' THEN 'Wellbeing'
+            WHEN Metric_ID LIKE 'DIS009b_C%' THEN 'Care transfer hub'
+            WHEN Metric_ID LIKE 'DIS009b_D%' THEN 'Interface'
+            WHEN Metric_ID LIKE 'DIS009b_E%' THEN 'Capacity'
+            WHEN Metric_ID LIKE 'DIS010b_A%' THEN 'Hospital'
+            WHEN Metric_ID LIKE 'DIS010b_B%' THEN 'Wellbeing'
+            WHEN Metric_ID LIKE 'DIS010b_C%' THEN 'Care transfer hub'
+            WHEN Metric_ID LIKE 'DIS010b_D%' THEN 'Interface'
+            WHEN Metric_ID LIKE 'DIS010b_E%' THEN 'Capacity'
+            ELSE NULL
+        END AS Pathway,
+        CASE
+            WHEN Metric_ID LIKE 'DIS008b_%' THEN '21+'
+            WHEN Metric_ID LIKE 'DIS009b_%' THEN '14+'
+            WHEN Metric_ID LIKE 'DIS010b_%' THEN '7+'
+            ELSE NULL
+        END AS Days,
+        'NCTR Patients' AS Category,
+        SUM(CAST([Metric_Value] AS decimal)) AS Val
+    FROM [Reporting].[SEFT_CovidSitreps_Discharge_DashboardMetrics_ConsolidatedPeriod]
+    WHERE
+        Region = 'South West'
+        AND [Period] >= GETDATE() - 21
+    GROUP BY
+        Org_Code,
+        Metric_ID,
+        Metric_Name,
+        CAST([Date] AS date),
+        STP_Code,
+        STP_Name,
+        CASE
+            WHEN DATENAME(WEEKDAY, CAST([Date] AS date)) IN ('Saturday', 'Sunday')
+                THEN 'Weekend'
+            ELSE 'Weekday'
+        END
+) AS BaseData
+GROUP BY
+    [Table],
+    [Date],
+    Metric_ID,
+    Metric_Name,
+    Weekend_Weekday,
+    Combined_Status,
+    Pathway,
+    Days,
+    Category,
+    STP_Code,
+    CASE WHEN [Table] = 'AE' THEN 'South West Total' ELSE Site_name END;

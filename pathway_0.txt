@@ -1,0 +1,117 @@
+DECLARE @MaxPeriodDate DATE =
+    DATEFROMPARTS(
+        YEAR(EOMONTH(GETDATE(), -1)),
+        MONTH(EOMONTH(GETDATE(), -1)),
+        1
+    );
+
+-- Original data query
+SELECT
+    CAST(CONCAT(LEFT([Period],7), '-01') AS DATE) AS [Month_Period],
+    [STP_Code],
+    [STP_Name],
+    [Org_Code],
+    [Organisation_Name],
+    [Metric_ID],
+    [Metric_Name],
+    [MetricDescription],
+
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Period] AS DATE)) IN ('Saturday', 'Sunday') THEN 'Weekend'
+        ELSE 'Weekday'
+    END AS [Weekend_Weekday],
+
+    CASE
+        WHEN Metric_ID IN (
+            'DIS004a_P0A','DIS004b_P0A','DIS004a_P0B','DIS004b_P0B',
+            'DIS004_P0_Home','DIS004_P0_Other','DIS004b_P0_Home','DIS004b_P0_Other'
+        )
+            THEN 'P0'
+        ELSE 'Total'
+    END AS [Pathway_0],
+
+    SUM(CONVERT(INT, [Metric_Value])) AS [Metric_Value]
+
+FROM [Reporting].[SEFT_CovidSitreps_Discharge_DashboardMetrics_ConsolidatedPeriod]
+
+WHERE
+    Region = 'South West'
+    AND CAST(CONCAT(LEFT(Period,7), '-01') AS DATE) >= DATEADD(MONTH, -23, @MaxPeriodDate)
+    AND CAST(CONCAT(LEFT(Period,7), '-01') AS DATE) <= @MaxPeriodDate
+    AND Metric_ID IN (
+        'DIS004a_P0A','DIS004b_P0A','DIS004a_P0B','DIS004b_P0B',
+        'DIS004a_Total','DIS004b_Total',
+        'DIS004_P0_Home','DIS004_P0_Other',
+        'DIS004b_P0_Home','DIS004b_P0_Other'
+    )
+
+GROUP BY
+    CAST(CONCAT(LEFT([Period],7), '-01') AS DATE),
+    [STP_Code],
+    [STP_Name],
+    [Org_Code],
+    [Organisation_Name],
+    [Metric_ID],
+    [Metric_Name],
+    [MetricDescription],
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Period] AS DATE)) IN ('Saturday', 'Sunday') THEN 'Weekend'
+        ELSE 'Weekday'
+    END
+
+UNION ALL
+
+-- South West Total
+SELECT
+    CAST(CONCAT(LEFT([Period],7), '-01') AS DATE) AS [Month_Period],
+    'South West Total' AS [STP_Code],
+    'South West Total' AS [STP_Name],
+    'South West Total' AS [Org_Code],
+    'South West Total' AS [Organisation_Name],
+    [Metric_ID],
+    [Metric_Name],
+    [MetricDescription],
+
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Period] AS DATE)) IN ('Saturday', 'Sunday') THEN 'Weekend'
+        ELSE 'Weekday'
+    END AS [Weekend_Weekday],
+
+    CASE
+        WHEN Metric_ID IN (
+            'DIS004a_P0A','DIS004b_P0A','DIS004a_P0B','DIS004b_P0B',
+            'DIS004_P0_Home','DIS004_P0_Other','DIS004b_P0_Home','DIS004b_P0_Other'
+        )
+            THEN 'P0'
+        ELSE 'Total'
+    END AS [Pathway_0],
+
+    SUM(CONVERT(INT, [Metric_Value])) AS [Metric_Value]
+
+FROM [Reporting].[SEFT_CovidSitreps_Discharge_DashboardMetrics_ConsolidatedPeriod]
+
+WHERE
+    Region = 'South West'
+    AND CAST(CONCAT(LEFT(Period,7), '-01') AS DATE) >= DATEADD(MONTH, -23, @MaxPeriodDate)
+    AND CAST(CONCAT(LEFT(Period,7), '-01') AS DATE) <= @MaxPeriodDate
+    AND Metric_ID IN (
+        'DIS004a_P0A','DIS004b_P0A','DIS004a_P0B','DIS004b_P0B',
+        'DIS004a_Total','DIS004b_Total',
+        'DIS004_P0_Home','DIS004_P0_Other',
+        'DIS004b_P0_Home','DIS004b_P0_Other'
+    )
+
+GROUP BY
+    CAST(CONCAT(LEFT([Period],7), '-01') AS DATE),
+    [Metric_ID],
+    [Metric_Name],
+    [MetricDescription],
+    CASE
+        WHEN DATENAME(WEEKDAY, CAST([Period] AS DATE)) IN ('Saturday', 'Sunday') THEN 'Weekend'
+        ELSE 'Weekday'
+    END
+
+ORDER BY
+    [Month_Period],
+    [STP_Code],
+    [Org_Code];

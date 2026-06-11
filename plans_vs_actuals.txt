@@ -1,0 +1,205 @@
+;WITH plan_numer AS (
+    SELECT  
+          'plan' AS Source
+        , OrgCode
+        , OrgType
+        , ICBCode
+        , CASE 
+            WHEN MEASUREID = '3178' THEN 'Percentage of patients discharged on discharge ready date'
+            WHEN MEASUREID = '3016' THEN 'Overnight total general and acute bed occupancy %'
+            WHEN MEASUREID = '3171' THEN 'Non elective LOS – acute'
+            WHEN MEASUREID = '3180' THEN 'Average delay (exclude zero delay)'
+          END AS MeasureName
+        , DimensionType
+        , DimDateStart
+        , MeasureId
+        , [Value] AS Num
+        , TimeStamp
+        , CASE 
+            WHEN MEASUREID = '3178' THEN '3177'
+            WHEN MEASUREID = '3016' THEN '3017'
+            WHEN MEASUREID = '3171' THEN '3172'
+            WHEN MEASUREID = '3180' THEN '3181'
+          END AS Denom_MeasureID
+    FROM [UDALLakeMart_PATPlanningReporting].[plan_data_2627_1]
+    WHERE SOURCE = 'PLAN'
+      AND REGIONCODE = 'Y58'
+      AND DimensionType = 'Month'
+      AND MEASUREID IN ('3178','3016','3171','3180')
+),
+
+plan_denom AS (
+    SELECT  
+          'plan' AS Source
+        , OrgCode
+        , OrgType
+        , ICBCode
+        , MeasureID
+        , DimDateStart
+        , [Value] AS Denom
+        , TimeStamp
+    FROM [UDALLakeMart_PATPlanningReporting].[plan_data_2627_1]
+    WHERE SOURCE = 'PLAN'
+      AND REGIONCODE = 'Y58'
+      AND DimensionType = 'Month'
+      AND MEASUREID IN ('3177','3017','3172','3181')
+),
+
+plan_base AS (
+    SELECT 
+          n.Source
+        , n.OrgCode
+        , n.OrgType
+        , n.ICBCode
+        , n.MeasureName
+        , n.DimensionType
+        , n.DimDateStart
+        , n.MeasureId
+        , n.Num
+        , d.Denom
+        , n.TimeStamp
+    FROM plan_numer n
+    LEFT JOIN plan_denom d
+        ON n.Denom_MeasureID = d.MeasureID
+        AND n.OrgCode = d.OrgCode
+        AND n.OrgType = d.OrgType
+        AND n.ICBCode = d.ICBCode
+        AND n.DimDateStart = d.DimDateStart
+        AND n.TimeStamp = d.TimeStamp
+),
+
+actual_numer AS (
+    SELECT  
+          'actual' AS Source
+        , OrgCode
+        , OrgType
+        , ICBCode
+        , CASE 
+            WHEN MEASUREID = '3178' THEN 'Percentage of patients discharged on discharge ready date'
+            WHEN MEASUREID = '3016' THEN 'Overnight total general and acute bed occupancy %'
+            WHEN MEASUREID = '3171' THEN 'Non elective LOS – acute'
+            WHEN MEASUREID = '3180' THEN 'Average delay (exclude zero delay)'
+          END AS MeasureName
+        , DimensionType
+        , DimDateStart
+        , MeasureId
+        , [Value] AS Num
+        , NULL AS TimeStamp
+        , CASE 
+            WHEN MEASUREID = '3178' THEN '3177'
+            WHEN MEASUREID = '3016' THEN '3017'
+            WHEN MEASUREID = '3171' THEN '3172'
+            WHEN MEASUREID = '3180' THEN '3181'
+          END AS Denom_MeasureID
+    FROM [UDALLakeMart_PATPlanningReporting].[actual_data_2627]
+    WHERE REGIONCODE = 'Y58'
+      AND DimensionType = 'Month'
+      AND MEASUREID IN ('3178','3016','3171','3180')
+),
+
+actual_denom AS (
+    SELECT  
+          'actual' AS Source
+        , OrgCode
+        , OrgType
+        , ICBCode
+        , MeasureID
+        , DimDateStart
+        , [Value] AS Denom
+        , NULL AS TimeStamp
+    FROM [UDALLakeMart_PATPlanningReporting].[actual_data_2627]
+    WHERE REGIONCODE = 'Y58'
+      AND DimensionType = 'Month'
+      AND MEASUREID IN ('3177','3017','3172','3181')
+),
+
+actual_base AS (
+    SELECT 
+          n.Source
+        , n.OrgCode
+        , n.OrgType
+        , n.ICBCode
+        , n.MeasureName
+        , n.DimensionType
+        , n.DimDateStart
+        , n.MeasureId
+        , n.Num
+        , d.Denom
+        , n.TimeStamp
+    FROM actual_numer n
+    LEFT JOIN actual_denom d
+        ON n.Denom_MeasureID = d.MeasureID
+        AND n.OrgCode = d.OrgCode
+        AND n.OrgType = d.OrgType
+        AND n.ICBCode = d.ICBCode
+        AND n.DimDateStart = d.DimDateStart
+),
+
+-- =========================
+-- COMBINED BASE (PLAN + ACTUAL)
+-- =========================
+base_all AS (
+    SELECT * FROM plan_base
+    UNION ALL
+    SELECT * FROM actual_base
+),
+
+-- =========================
+-- SOUTH WEST TOTAL (ONE LOGIC ONLY)
+-- =========================
+sw_total AS (
+    SELECT 
+          Source
+        , 'South West Total' AS OrgCode
+        , OrgType
+        , 'South West Total' AS ICBCode
+        , MeasureName
+        , DimensionType
+        , DimDateStart
+        , MeasureId
+        , SUM(Num) AS Num
+        , SUM(Denom) AS Denom
+        , TimeStamp
+    FROM base_all
+    GROUP BY 
+          Source
+        , OrgType
+        , MeasureName
+        , DimensionType
+        , DimDateStart
+        , MeasureId
+        , TimeStamp
+)
+
+-- =========================
+-- FINAL OUTPUT
+-- =========================
+SELECT 
+      Source
+    , OrgCode
+    , OrgType
+    , ICBCode
+    , MeasureName
+    , DimensionType
+    , DimDateStart
+    , MeasureId
+    , Num
+    , Denom
+    , TimeStamp
+FROM base_all
+
+UNION ALL
+
+SELECT 
+      Source
+    , OrgCode
+    , OrgType
+    , ICBCode
+    , MeasureName
+    , DimensionType
+    , DimDateStart
+    , MeasureId
+    , Num
+    , Denom
+    , TimeStamp
+FROM sw_total;

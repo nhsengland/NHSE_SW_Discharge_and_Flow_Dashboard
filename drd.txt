@@ -1,0 +1,113 @@
+SELECT
+    d.Discharge_Ready_Date,
+    d.Discharge_Date,
+    d.Der_Provider_Code AS Orgcode,
+    d.Discharge_Destination,
+    d.Der_Management_Type,
+    d.Der_Provider_Site_Code AS site_code,
+    b.STP_Name,
+    b.STP_Code,
+    COUNT(CAST(d.APCS_Ident AS VARCHAR)) AS MetricValue
+
+FROM [MESH_APC].[APCS_Core_Daily] AS d
+
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies] b
+    ON d.Der_Provider_Code = b.Organisation_Code COLLATE Latin1_General_CI_AS
+
+WHERE
+    d.Hospital_Spell_Duration > '0'
+    AND NOT (d.Admission_Method IN ('31', '32', '82', '83'))
+    AND NOT (d.Discharge_Destination IN ('51', '52', '88', '87', '79'))
+    AND d.Der_Provider_Code IN (
+        'RbZ', 'RVJ', 'RH5', 'RA3', 'R0D', 'RA9',
+        'RH8', 'RA7', 'RBD', 'RNZ', 'RA4', 'RN3',
+        'RK9', 'RTE', 'RD1', 'REF'
+    )
+    AND d.Discharge_Date >= DATEADD(
+            MONTH,
+            -24,
+            DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+        )
+    AND d.Discharge_Date < DATEFROMPARTS(
+            YEAR(GETDATE()),
+            MONTH(GETDATE()),
+            1
+        )
+    AND NOT (
+        d.Der_Dischg_Treatment_Function_Code IN (
+            '199', '223', '290', '291', '331', '344', '345', '346',
+            '360', '424', '499', '501', '504', '560', '650', '651',
+            '652', '653', '654', '655', '656', '657', '658', '659',
+            '660', '661', '662', '700', '710', '711', '712', '713',
+            '715', '720', '721', '722', '723', '724', '725', '726',
+            '727', '730', '840', '920', 'NULL'
+        )
+    )
+    AND d.Der_Age_at_CDS_Activity_Date >= '16'
+    AND NOT (d.Discharge_Method IN ('4', '5'))
+
+GROUP BY
+    d.Der_Provider_Code,
+    d.Der_Provider_Site_Code,
+    b.STP_Name,
+    b.STP_Code,
+    d.Discharge_Ready_Date,
+    d.Discharge_Destination,
+    d.Der_Management_Type,
+    d.Discharge_Date
+
+UNION ALL
+
+SELECT
+    d.Discharge_Ready_Date,
+    d.Discharge_Date,
+    'South West Total' AS Orgcode,
+    d.Discharge_Destination,
+    d.Der_Management_Type,
+    'South West Total' AS site_code,
+    'South West Total' AS STP_Name,
+    'South West Total' AS STP_Code,
+    COUNT(CAST(d.APCS_Ident AS VARCHAR)) AS MetricValue
+
+FROM [MESH_APC].[APCS_Core_Daily] AS d
+
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies] b
+    ON d.Der_Provider_Code = b.Organisation_Code COLLATE Latin1_General_CI_AS
+
+WHERE
+    d.Hospital_Spell_Duration > '0'
+    AND NOT (d.Admission_Method IN ('31', '32', '82', '83'))
+    AND NOT (d.Discharge_Destination IN ('51', '52', '88', '87', '79'))
+    AND d.Der_Provider_Code IN (
+        'RbZ', 'RVJ', 'RH5', 'RA3', 'R0D', 'RA9',
+        'RH8', 'RA7', 'RBD', 'RNZ', 'RA4', 'RN3',
+        'RK9', 'RTE', 'RD1', 'REF'
+    )
+    AND d.Discharge_Date >= DATEADD(
+            MONTH,
+            -24,
+            DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+        )
+    AND d.Discharge_Date < DATEFROMPARTS(
+            YEAR(GETDATE()),
+            MONTH(GETDATE()),
+            1
+        )
+    AND NOT (
+        d.Der_Dischg_Treatment_Function_Code IN (
+            '199', '223', '290', '291', '331', '344', '345', '346',
+            '360', '424', '499', '501', '504', '560', '650', '651',
+            '652', '653', '654', '655', '656', '657', '658', '659',
+            '660', '661', '662', '700', '710', '711', '712', '713',
+            '715', '720', '721', '722', '723', '724', '725', '726',
+            '727', '730', '840', '920', 'NULL'
+        )
+    )
+    AND d.Der_Age_at_CDS_Activity_Date >= '16'
+    AND NOT (d.Discharge_Method IN ('4', '5'))
+
+GROUP BY
+    d.Discharge_Ready_Date,
+    d.Discharge_Destination,
+    d.Der_Management_Type,
+    d.Discharge_Date;
