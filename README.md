@@ -6,8 +6,8 @@
  
 This repository contains the SQL code used to produce the NHS England South West Discharge and Flow Dashboard.
  
-The dashboard provides a regional overview of discharge performance, patient flow, length of stay, bed occupancy and virtual ward activity across acute providers in the South West. It supports operational performance monitoring and identifies opportunities to improve patient flow and discharge processes.
- 
+The dashboard provides a regional overview of discharge performance, patient flow, length of stay, bed occupancy and virtual ward activity across acute providers in the South West. 
+
 **Note:** No patient-level or identifiable data are stored within this repository.
  
 ---
